@@ -7,21 +7,24 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a0a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; justify-content: center; align-items: center; }
     .container { width: 480px; max-width: 100%; padding: 20px; background: #121212; border-radius: 24px; border: 1px solid #2a2a2a; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .header h1 { font-size: 22px; color: #ff0044; }
     .status { font-size: 14px; color: #66ff66; }
-    .chat { background: #1a1a1a; border-radius: 16px; padding: 20px; text-align: center; min-height: 200px; border: 1px solid #2a2a2a; }
-    .chat .avatar { font-size: 64px; margin-bottom: 8px; }
-    .chat .name { font-size: 20px; font-weight: 600; }
-    .chat .id { font-size: 14px; color: #888; }
-    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; justify-content: center; }
-    .btn { background: #2a2a2a; border: none; color: #fff; padding: 10px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: 0.2s; flex: 1 0 auto; min-width: 70px; }
+    .chat { background: #1a1a1a; border-radius: 16px; padding: 20px; text-align: center; min-height: 160px; border: 1px solid #2a2a2a; }
+    .chat .avatar { font-size: 56px; }
+    .chat .name { font-size: 18px; font-weight: 600; }
+    .chat .id { font-size: 13px; color: #888; }
+    .settings { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; background: #1a1a1a; padding: 12px; border-radius: 16px; border: 1px solid #2a2a2a; }
+    .settings select, .settings input { background: #0d0d0d; color: #fff; border: 1px solid #333; padding: 6px 10px; border-radius: 8px; font-size: 13px; flex: 1 0 auto; min-width: 60px; }
+    .settings label { font-size: 12px; color: #aaa; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center; }
+    .btn { background: #2a2a2a; border: none; color: #fff; padding: 10px 16px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: 0.2s; flex: 1 0 auto; min-width: 60px; }
     .btn:hover { background: #3a3a3a; }
     .btn-primary { background: #ff0044; }
     .btn-primary:hover { background: #cc0033; }
     .btn-danger { background: #cc0033; }
     .btn-danger:hover { background: #990022; }
-    .log { margin-top: 16px; background: #0d0d0d; border-radius: 12px; padding: 8px; font-size: 12px; font-family: monospace; max-height: 80px; overflow-y: auto; color: #888; border: 1px solid #1a1a1a; }
+    .log { margin-top: 12px; background: #0d0d0d; border-radius: 12px; padding: 8px; font-size: 12px; font-family: monospace; max-height: 70px; overflow-y: auto; color: #888; border: 1px solid #1a1a1a; }
   </style>
 </head>
 <body>
@@ -35,6 +38,29 @@
     <div class="avatar">👤</div>
     <div class="name" id="userName">Никто не подключён</div>
     <div class="id" id="userId">Ожидание...</div>
+  </div>
+
+  <div class="settings">
+    <label>Твой пол
+      <select id="mySex">
+        <option value="">Любой</option>
+        <option value="male">Мужской</option>
+        <option value="female">Женский</option>
+      </select>
+    </label>
+    <label>Пол собеседника
+      <select id="wishSex">
+        <option value="">Любой</option>
+        <option value="male">Мужской</option>
+        <option value="female">Женский</option>
+      </select>
+    </label>
+    <label>Возраст от
+      <input type="number" id="ageFrom" value="18" min="18" max="99" />
+    </label>
+    <label>Возраст до
+      <input type="number" id="ageTo" value="35" min="18" max="99" />
+    </label>
   </div>
 
   <div class="controls">
@@ -53,6 +79,10 @@
     const statusDiv = document.getElementById('status');
     const userName = document.getElementById('userName');
     const userId = document.getElementById('userId');
+    const mySex = document.getElementById('mySex');
+    const wishSex = document.getElementById('wishSex');
+    const ageFrom = document.getElementById('ageFrom');
+    const ageTo = document.getElementById('ageTo');
     let ws = null;
 
     function log(msg) {
@@ -64,6 +94,15 @@
     function setStatus(text, online = false) {
       statusDiv.textContent = text;
       statusDiv.style.color = online ? '#66ff66' : '#ff4444';
+    }
+
+    function getFilters() {
+      return {
+        mySex: mySex.value,
+        wishSex: wishSex.value,
+        ageFrom: parseInt(ageFrom.value) || 18,
+        ageTo: parseInt(ageTo.value) || 99
+      };
     }
 
     function connect() {
@@ -103,11 +142,16 @@
         log('⚠️ Нет соединения');
         return;
       }
-      ws.send(JSON.stringify({ cmd, param }));
+      const filters = getFilters();
+      const data = { cmd, param, filters };
+      ws.send(JSON.stringify(data));
       log('➡️ ' + cmd + (param ? ' ' + param : ''));
     }
 
-    document.getElementById('nextBtn').addEventListener('click', () => sendCommand('next'));
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      sendCommand('next');
+    });
+
     document.getElementById('micBtn').addEventListener('click', () => sendCommand('toggle_mic'));
     document.getElementById('muteBtn').addEventListener('click', () => sendCommand('mute'));
     document.getElementById('kickBtn').addEventListener('click', () => sendCommand('kick'));

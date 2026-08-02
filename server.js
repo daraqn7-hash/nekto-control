@@ -12,8 +12,9 @@ app.use(express.static('public'));
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+// ===== НОВЫЙ ТОКЕН =====
+const AUTH_TOKEN = 'a7e55f9e-d90a-4cf9-89cc-5a44a4306597';
 const NEKTO_WS_URL = 'wss://im.nekto.me/socket.io/?EIO=4&transport=websocket';
-const AUTH_TOKEN = '101ca535-9527-491c-880e-0daa66b9e382';
 
 let nektoSocket = null;
 let clients = [];
@@ -35,7 +36,7 @@ function connectToNekto() {
     nektoSocket.on('open', () => {
         console.log('[⚡] Connected to Nekto Me');
         nektoSocket.send('40');
-        // Автоматически подключаемся к случайному собеседнику
+        // Автоматически ищем собеседника через 2 секунды
         setTimeout(() => sendToNekto('next'), 2000);
     });
 
@@ -43,14 +44,12 @@ function connectToNekto() {
         const msg = data.toString();
         console.log('[RAW]', msg);
 
-        // Проксируем все сообщения клиентам
         clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(msg);
             }
         });
 
-        // Парсим события Nekto Me
         try {
             if (msg.startsWith('42["')) {
                 const json = JSON.parse(msg.slice(2));
@@ -58,19 +57,17 @@ function connectToNekto() {
                 const payload = json[1];
 
                 if (event === 'peer') {
-                    // Подключён собеседник
                     clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
-                            client.send(JSON.stringify({ 
-                                cmd: 'user_connected', 
-                                userId: payload.id || 'unknown' 
+                            client.send(JSON.stringify({
+                                cmd: 'user_connected',
+                                userId: payload.id || 'unknown'
                             }));
                         }
                     });
                 }
 
                 if (event === 'peer_left') {
-                    // Собеседник отключился
                     clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({ cmd: 'user_disconnected' }));
@@ -100,7 +97,26 @@ wss.on('connection', (ws) => {
         try {
             const parsed = JSON.parse(msg);
             const cmd = parsed.cmd;
-            const param = parsed.param || '';
+            let param = parsed.param || '';
+
+            // Если есть фильтры — передаём их как JSON-строку
+            if (parsed.filters) {
+                param = JSON.stringify(parsed.filters);
+            }
+
+            if (cmd === 'next') {
+                // Если фильтры переданы отдельно — используем их
+                const filters = parsed.filters || {};
+                if (filters.mySex || filters.wishSex || filters.ageFrom) {
+                    param = JSON.stringify({
+                        mySex: filters.mySex || '',
+                        wishSex: filters.wishSex || '',
+                        ageFrom: filters.ageFrom || 18,
+                        ageTo: filters.ageTo || 99
+                    });
+                }
+            }
+
             sendToNekto(cmd, param);
         } catch (_) {
             console.log('[ERR] Invalid command:', msg);
