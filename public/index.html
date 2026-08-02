@@ -10,13 +10,17 @@
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .header h1 { font-size: 22px; color: #ff0044; }
     .status { font-size: 14px; color: #66ff66; }
-    .chat { background: #1a1a1a; border-radius: 16px; padding: 20px; text-align: center; min-height: 160px; border: 1px solid #2a2a2a; }
-    .chat .avatar { font-size: 56px; }
+
+    .chat { background: #1a1a1a; border-radius: 16px; padding: 20px; text-align: center; min-height: 160px; border: 1px solid #2a2a2a; position: relative; }
+    .chat .avatar { font-size: 56px; user-select: none; cursor: pointer; }
     .chat .name { font-size: 18px; font-weight: 600; }
     .chat .id { font-size: 13px; color: #888; }
+    .chat .online { color: #66ff66; font-size: 12px; margin-top: 4px; }
+
     .settings { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; background: #1a1a1a; padding: 12px; border-radius: 16px; border: 1px solid #2a2a2a; }
     .settings select, .settings input { background: #0d0d0d; color: #fff; border: 1px solid #333; padding: 6px 10px; border-radius: 8px; font-size: 13px; flex: 1 0 auto; min-width: 60px; }
     .settings label { font-size: 12px; color: #aaa; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+
     .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; justify-content: center; }
     .btn { background: #2a2a2a; border: none; color: #fff; padding: 10px 16px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: 0.2s; flex: 1 0 auto; min-width: 60px; }
     .btn:hover { background: #3a3a3a; }
@@ -24,7 +28,15 @@
     .btn-primary:hover { background: #cc0033; }
     .btn-danger { background: #cc0033; }
     .btn-danger:hover { background: #990022; }
+    .btn-mic { background: #1a5a1a; }
+    .btn-mic.off { background: #5a1a1a; }
+
     .log { margin-top: 12px; background: #0d0d0d; border-radius: 12px; padding: 8px; font-size: 12px; font-family: monospace; max-height: 70px; overflow-y: auto; color: #888; border: 1px solid #1a1a1a; }
+
+    /* Контекстное меню */
+    .context-menu { display: none; position: fixed; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 8px 0; min-width: 180px; z-index: 1000; }
+    .context-menu .item { padding: 10px 20px; cursor: pointer; color: #ccc; font-size: 14px; }
+    .context-menu .item:hover { background: #2a2a2a; color: #fff; }
   </style>
 </head>
 <body>
@@ -35,9 +47,10 @@
   </div>
 
   <div class="chat" id="chat">
-    <div class="avatar">👤</div>
+    <div class="avatar" id="avatar">👤</div>
     <div class="name" id="userName">Никто не подключён</div>
     <div class="id" id="userId">Ожидание...</div>
+    <div class="online" id="onlineStatus"></div>
   </div>
 
   <div class="settings">
@@ -65,12 +78,19 @@
 
   <div class="controls">
     <button class="btn btn-primary" id="nextBtn">▶ Следующий</button>
-    <button class="btn" id="micBtn">🎤 Микрофон</button>
-    <button class="btn" id="muteBtn">🔇 Заглушить</button>
-    <button class="btn btn-danger" id="kickBtn">🚫 Кикнуть</button>
+    <button class="btn btn-mic" id="micBtn">🎤 Микрофон</button>
   </div>
 
   <div class="log" id="logBox">[⚡] Готов к работе.</div>
+</div>
+
+<!-- Контекстное меню -->
+<div class="context-menu" id="contextMenu">
+  <div class="item" data-action="mute">🔇 Заглушить</div>
+  <div class="item" data-action="unmute">🔊 Включить звук</div>
+  <div class="item" data-action="kick">🚫 Кикнуть</div>
+  <div class="item" data-action="listen">🎧 Прослушка</div>
+  <div class="item" data-action="block">⛔ Заблокировать</div>
 </div>
 
 <script>
@@ -79,11 +99,16 @@
     const statusDiv = document.getElementById('status');
     const userName = document.getElementById('userName');
     const userId = document.getElementById('userId');
+    const onlineStatus = document.getElementById('onlineStatus');
+    const avatar = document.getElementById('avatar');
     const mySex = document.getElementById('mySex');
     const wishSex = document.getElementById('wishSex');
     const ageFrom = document.getElementById('ageFrom');
     const ageTo = document.getElementById('ageTo');
+    const contextMenu = document.getElementById('contextMenu');
     let ws = null;
+    let currentUserId = null;
+    let micOn = true;
 
     function log(msg) {
       const time = new Date().toLocaleTimeString();
@@ -105,6 +130,22 @@
       };
     }
 
+    function setUserConnected(id) {
+      currentUserId = id;
+      userName.textContent = 'Собеседник';
+      userId.textContent = 'ID: ' + id.slice(0, 8);
+      onlineStatus.textContent = '🟢 онлайн';
+      avatar.textContent = '🧑';
+    }
+
+    function setUserDisconnected() {
+      currentUserId = null;
+      userName.textContent = 'Никто не подключён';
+      userId.textContent = 'Ожидание...';
+      onlineStatus.textContent = '';
+      avatar.textContent = '👤';
+    }
+
     function connect() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       ws = new WebSocket(`${protocol}//${location.host}`);
@@ -120,12 +161,10 @@
         try {
           const parsed = JSON.parse(data);
           if (parsed.cmd === 'user_connected') {
-            userName.textContent = 'Собеседник';
-            userId.textContent = 'ID: ' + parsed.userId;
+            setUserConnected(parsed.userId);
           }
           if (parsed.cmd === 'user_disconnected') {
-            userName.textContent = 'Никто не подключён';
-            userId.textContent = 'Ожидание...';
+            setUserDisconnected();
           }
         } catch (_) {}
       };
@@ -133,6 +172,7 @@
       ws.onclose = () => {
         log('Соединение потеряно');
         setStatus('🔴 офлайн', false);
+        setUserDisconnected();
         setTimeout(connect, 3000);
       };
     }
@@ -148,13 +188,44 @@
       log('➡️ ' + cmd + (param ? ' ' + param : ''));
     }
 
+    // === Кнопки ===
     document.getElementById('nextBtn').addEventListener('click', () => {
       sendCommand('next');
     });
 
-    document.getElementById('micBtn').addEventListener('click', () => sendCommand('toggle_mic'));
-    document.getElementById('muteBtn').addEventListener('click', () => sendCommand('mute'));
-    document.getElementById('kickBtn').addEventListener('click', () => sendCommand('kick'));
+    document.getElementById('micBtn').addEventListener('click', () => {
+      micOn = !micOn;
+      const btn = document.getElementById('micBtn');
+      btn.textContent = micOn ? '🎤 Микрофон' : '🎤 Выкл';
+      btn.classList.toggle('off', !micOn);
+      sendCommand(micOn ? 'mic_on' : 'mic_off');
+    });
+
+    // === Контекстное меню (правый клик по аватарке) ===
+    avatar.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (!currentUserId) return;
+      contextMenu.style.display = 'block';
+      contextMenu.style.left = e.clientX + 'px';
+      contextMenu.style.top = e.clientY + 'px';
+    });
+
+    document.addEventListener('click', () => {
+      contextMenu.style.display = 'none';
+    });
+
+    document.querySelectorAll('.context-menu .item').forEach(item => {
+      item.addEventListener('click', () => {
+        const action = item.dataset.action;
+        if (!currentUserId) return;
+        if (action === 'mute') sendCommand('mute', currentUserId);
+        if (action === 'unmute') sendCommand('unmute', currentUserId);
+        if (action === 'kick') sendCommand('kick', currentUserId);
+        if (action === 'listen') sendCommand('listen', currentUserId);
+        if (action === 'block') sendCommand('block', currentUserId);
+        contextMenu.style.display = 'none';
+      });
+    });
 
     connect();
   })();
