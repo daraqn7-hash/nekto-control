@@ -12,7 +12,6 @@ app.use(express.static('public'));
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// ===== НОВЫЙ ТОКЕН =====
 const AUTH_TOKEN = 'a7e55f9e-d90a-4cf9-89cc-5a44a4306597';
 const NEKTO_WS_URL = 'wss://im.nekto.me/socket.io/?EIO=4&transport=websocket';
 
@@ -36,25 +35,26 @@ function connectToNekto() {
     nektoSocket.on('open', () => {
         console.log('[⚡] Connected to Nekto Me');
         nektoSocket.send('40');
-        // Автоматически ищем собеседника через 2 секунды
-        setTimeout(() => sendToNekto('next'), 2000);
     });
 
     nektoSocket.on('message', (data) => {
         const msg = data.toString();
         console.log('[RAW]', msg);
 
+        // Отправляем всё клиентам
         clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(msg);
             }
         });
 
+        // Пытаемся понять, что за событие
         try {
             if (msg.startsWith('42["')) {
                 const json = JSON.parse(msg.slice(2));
                 const event = json[0];
                 const payload = json[1];
+                console.log('[EVENT]', event, payload);
 
                 if (event === 'peer') {
                     clients.forEach(client => {
@@ -94,27 +94,14 @@ wss.on('connection', (ws) => {
 
     ws.on('message', (message) => {
         const msg = message.toString();
+        console.log('[FROM CLIENT]', msg);
         try {
             const parsed = JSON.parse(msg);
             const cmd = parsed.cmd;
             let param = parsed.param || '';
 
-            // Если есть фильтры — передаём их как JSON-строку
             if (parsed.filters) {
                 param = JSON.stringify(parsed.filters);
-            }
-
-            if (cmd === 'next') {
-                // Если фильтры переданы отдельно — используем их
-                const filters = parsed.filters || {};
-                if (filters.mySex || filters.wishSex || filters.ageFrom) {
-                    param = JSON.stringify({
-                        mySex: filters.mySex || '',
-                        wishSex: filters.wishSex || '',
-                        ageFrom: filters.ageFrom || 18,
-                        ageTo: filters.ageTo || 99
-                    });
-                }
             }
 
             sendToNekto(cmd, param);
