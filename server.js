@@ -20,6 +20,7 @@ let clients = [];
 
 function sendToNekto(command, data = '') {
     if (!nektoSocket || nektoSocket.readyState !== WebSocket.OPEN) return;
+    // Отправляем в формате, который понимает Nekto Me
     const msg = JSON.stringify([command, data]);
     nektoSocket.send('42' + msg);
     console.log('[CMD]', command, data);
@@ -41,14 +42,12 @@ function connectToNekto() {
         const msg = data.toString();
         console.log('[RAW]', msg);
 
-        // Отправляем всё клиентам
         clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(msg);
             }
         });
 
-        // Пытаемся понять, что за событие
         try {
             if (msg.startsWith('42["')) {
                 const json = JSON.parse(msg.slice(2));
@@ -98,12 +97,15 @@ wss.on('connection', (ws) => {
         try {
             const parsed = JSON.parse(msg);
             const cmd = parsed.cmd;
-            let param = parsed.param || '';
 
-            if (parsed.filters) {
-                param = JSON.stringify(parsed.filters);
+            // Для next отправляем только команду, без параметров
+            if (cmd === 'next') {
+                sendToNekto('next', '');
+                return;
             }
 
+            // Для остальных команд — отправляем как есть
+            const param = parsed.param || '';
             sendToNekto(cmd, param);
         } catch (_) {
             console.log('[ERR] Invalid command:', msg);
