@@ -18,6 +18,13 @@ const AUTH_TOKEN = '101ca535-9527-491c-880e-0daa66b9e382';
 let nektoSocket = null;
 let clients = [];
 
+function sendToNekto(command, data = '') {
+    if (!nektoSocket || nektoSocket.readyState !== WebSocket.OPEN) return;
+    const msg = JSON.stringify([command, data]);
+    nektoSocket.send('42' + msg);
+    console.log('[CMD]', command, data);
+}
+
 function connectToNekto() {
     nektoSocket = new WebSocket(NEKTO_WS_URL, {
         headers: {
@@ -26,17 +33,52 @@ function connectToNekto() {
     });
 
     nektoSocket.on('open', () => {
-        console.log('[⚡] Connected to Nekto Me WebSocket');
+        console.log('[⚡] Connected to Nekto Me');
         nektoSocket.send('40');
+        // Автоматически подключаемся к случайному собеседнику
+        setTimeout(() => sendToNekto('next'), 2000);
     });
 
     nektoSocket.on('message', (data) => {
         const msg = data.toString();
+        console.log('[RAW]', msg);
+
+        // Проксируем все сообщения клиентам
         clients.forEach(client => {
             if (client.readyState === WebSocket.OPEN) {
                 client.send(msg);
             }
         });
+
+        // Парсим события Nekto Me
+        try {
+            if (msg.startsWith('42["')) {
+                const json = JSON.parse(msg.slice(2));
+                const event = json[0];
+                const payload = json[1];
+
+                if (event === 'peer') {
+                    // Подключён собеседник
+                    clients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({ 
+                                cmd: 'user_connected', 
+                                userId: payload.id || 'unknown' 
+                            }));
+                        }
+                    });
+                }
+
+                if (event === 'peer_left') {
+                    // Собеседник отключился
+                    clients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(JSON.stringify({ cmd: 'user_disconnected' }));
+                        }
+                    });
+                }
+            }
+        } catch (_) {}
     });
 
     nektoSocket.on('close', () => {
@@ -51,19 +93,18 @@ function connectToNekto() {
 
 wss.on('connection', (ws) => {
     clients.push(ws);
-    console.log('[⚡] New client connected');
+    console.log('[⚡] Client connected');
 
     ws.on('message', (message) => {
         const msg = message.toString();
         try {
             const parsed = JSON.parse(msg);
-            if (nektoSocket && nektoSocket.readyState === WebSocket.OPEN) {
-                // Формируем команду для Nekto Me
-                const cmd = parsed.cmd;
-                const param = parsed.param || '';
-                nektoSocket.send(`42["${cmd}", "${param}"]`);
-            }
-        } catch (_) {}
+            const cmd = parsed.cmd;
+            const param = parsed.param || '';
+            sendToNekto(cmd, param);
+        } catch (_) {
+            console.log('[ERR] Invalid command:', msg);
+        }
     });
 
     ws.on('close', () => {

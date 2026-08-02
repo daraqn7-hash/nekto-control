@@ -6,26 +6,22 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a0a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; justify-content: center; align-items: center; }
-    .container { width: 480px; max-width: 100%; padding: 20px; background: #121212; border-radius: 24px; border: 1px solid #2a2a2a; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
+    .container { width: 480px; max-width: 100%; padding: 20px; background: #121212; border-radius: 24px; border: 1px solid #2a2a2a; }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .header h1 { font-size: 22px; color: #ff0044; letter-spacing: 1px; }
+    .header h1 { font-size: 22px; color: #ff0044; }
     .status { font-size: 14px; color: #66ff66; }
-    .chat-window { background: #1a1a1a; border-radius: 16px; padding: 16px; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #2a2a2a; }
-    .avatar-placeholder { font-size: 72px; margin-bottom: 12px; }
-    .user-name { font-size: 20px; font-weight: 600; color: #fff; }
-    .user-id { font-size: 14px; color: #888; margin-top: 4px; }
-    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; justify-content: center; }
-    .btn { background: #2a2a2a; border: none; color: #fff; padding: 10px 20px; border-radius: 40px; font-weight: 600; font-size: 14px; cursor: pointer; transition: 0.2s; flex: 1 0 auto; min-width: 80px; }
+    .chat { background: #1a1a1a; border-radius: 16px; padding: 20px; text-align: center; min-height: 200px; border: 1px solid #2a2a2a; }
+    .chat .avatar { font-size: 64px; margin-bottom: 8px; }
+    .chat .name { font-size: 20px; font-weight: 600; }
+    .chat .id { font-size: 14px; color: #888; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; justify-content: center; }
+    .btn { background: #2a2a2a; border: none; color: #fff; padding: 10px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: 0.2s; flex: 1 0 auto; min-width: 70px; }
     .btn:hover { background: #3a3a3a; }
-    .btn-primary { background: #ff0044; color: #fff; }
+    .btn-primary { background: #ff0044; }
     .btn-primary:hover { background: #cc0033; }
     .btn-danger { background: #cc0033; }
     .btn-danger:hover { background: #990022; }
-    .btn-small { padding: 6px 14px; font-size: 12px; flex: 0 1 auto; }
-    .context-menu { display: none; position: fixed; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 8px 0; min-width: 180px; z-index: 1000; }
-    .context-menu .item { padding: 10px 20px; cursor: pointer; color: #ccc; font-size: 14px; }
-    .context-menu .item:hover { background: #2a2a2a; color: #fff; }
-    .log { margin-top: 16px; background: #0d0d0d; border-radius: 12px; padding: 10px; font-size: 12px; font-family: monospace; max-height: 100px; overflow-y: auto; color: #888; border: 1px solid #1a1a1a; }
+    .log { margin-top: 16px; background: #0d0d0d; border-radius: 12px; padding: 8px; font-size: 12px; font-family: monospace; max-height: 80px; overflow-y: auto; color: #888; border: 1px solid #1a1a1a; }
   </style>
 </head>
 <body>
@@ -35,10 +31,10 @@
     <span class="status" id="status">🔴 офлайн</span>
   </div>
 
-  <div class="chat-window" id="chatWindow">
-    <div class="avatar-placeholder">👤</div>
-    <div class="user-name" id="userName">Никто не подключён</div>
-    <div class="user-id" id="userId">Ожидание...</div>
+  <div class="chat" id="chat">
+    <div class="avatar">👤</div>
+    <div class="name" id="userName">Никто не подключён</div>
+    <div class="id" id="userId">Ожидание...</div>
   </div>
 
   <div class="controls">
@@ -51,27 +47,12 @@
   <div class="log" id="logBox">[⚡] Готов к работе.</div>
 </div>
 
-<!-- Контекстное меню (правый клик) -->
-<div class="context-menu" id="contextMenu">
-  <div class="item" data-action="mute">🔇 Заглушить</div>
-  <div class="item" data-action="unmute">🔊 Включить звук</div>
-  <div class="item" data-action="kick">🚫 Кикнуть</div>
-  <div class="item" data-action="listen">🎧 Прослушка</div>
-  <div class="item" data-action="block">⛔ Заблокировать</div>
-</div>
-
 <script>
   (function() {
     const logBox = document.getElementById('logBox');
     const statusDiv = document.getElementById('status');
     const userName = document.getElementById('userName');
     const userId = document.getElementById('userId');
-    const nextBtn = document.getElementById('nextBtn');
-    const micBtn = document.getElementById('micBtn');
-    const muteBtn = document.getElementById('muteBtn');
-    const kickBtn = document.getElementById('kickBtn');
-    const contextMenu = document.getElementById('contextMenu');
-    let currentUserId = null;
     let ws = null;
 
     function log(msg) {
@@ -90,30 +71,28 @@
       ws = new WebSocket(`${protocol}//${location.host}`);
 
       ws.onopen = () => {
-        log('[SYS] Подключено к серверу');
+        log('Подключено к серверу');
         setStatus('✅ онлайн', true);
       };
 
       ws.onmessage = (e) => {
         const data = e.data;
-        log('[IN] ' + data);
+        log('📩 ' + data);
         try {
           const parsed = JSON.parse(data);
           if (parsed.cmd === 'user_connected') {
-            currentUserId = parsed.userId;
-            userName.textContent = 'Пользователь ' + parsed.userId.slice(0, 6);
+            userName.textContent = 'Собеседник';
             userId.textContent = 'ID: ' + parsed.userId;
           }
           if (parsed.cmd === 'user_disconnected') {
             userName.textContent = 'Никто не подключён';
             userId.textContent = 'Ожидание...';
-            currentUserId = null;
           }
         } catch (_) {}
       };
 
       ws.onclose = () => {
-        log('[SYS] Соединение потеряно');
+        log('Соединение потеряно');
         setStatus('🔴 офлайн', false);
         setTimeout(connect, 3000);
       };
@@ -121,48 +100,17 @@
 
     function sendCommand(cmd, param = '') {
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        log('[ERR] Нет соединения');
+        log('⚠️ Нет соединения');
         return;
       }
       ws.send(JSON.stringify({ cmd, param }));
-      log('[OUT] → ' + cmd + ' ' + param);
+      log('➡️ ' + cmd + (param ? ' ' + param : ''));
     }
 
-    // Кнопки
-    nextBtn.addEventListener('click', () => sendCommand('next'));
-    micBtn.addEventListener('click', () => sendCommand('toggle_mic'));
-    muteBtn.addEventListener('click', () => sendCommand('mute', currentUserId || ''));
-    kickBtn.addEventListener('click', () => sendCommand('kick', currentUserId || ''));
-
-    // Контекстное меню (правый клик)
-    document.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const target = e.target.closest('.user-name, .user-id, .chat-window');
-      if (target && currentUserId) {
-        contextMenu.style.display = 'block';
-        contextMenu.style.left = e.clientX + 'px';
-        contextMenu.style.top = e.clientY + 'px';
-      } else {
-        contextMenu.style.display = 'none';
-      }
-    });
-
-    document.addEventListener('click', () => {
-      contextMenu.style.display = 'none';
-    });
-
-    document.querySelectorAll('.context-menu .item').forEach(item => {
-      item.addEventListener('click', () => {
-        const action = item.dataset.action;
-        if (!currentUserId) return;
-        if (action === 'mute') sendCommand('mute', currentUserId);
-        if (action === 'unmute') sendCommand('unmute', currentUserId);
-        if (action === 'kick') sendCommand('kick', currentUserId);
-        if (action === 'listen') sendCommand('listen', currentUserId);
-        if (action === 'block') sendCommand('block', currentUserId);
-        contextMenu.style.display = 'none';
-      });
-    });
+    document.getElementById('nextBtn').addEventListener('click', () => sendCommand('next'));
+    document.getElementById('micBtn').addEventListener('click', () => sendCommand('toggle_mic'));
+    document.getElementById('muteBtn').addEventListener('click', () => sendCommand('mute'));
+    document.getElementById('kickBtn').addEventListener('click', () => sendCommand('kick'));
 
     connect();
   })();
