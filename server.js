@@ -54,9 +54,16 @@ wss.on('connection', (ws) => {
     console.log('[⚡] New client connected');
 
     ws.on('message', (message) => {
-        if (nektoSocket && nektoSocket.readyState === WebSocket.OPEN) {
-            nektoSocket.send(message.toString());
-        }
+        const msg = message.toString();
+        try {
+            const parsed = JSON.parse(msg);
+            if (nektoSocket && nektoSocket.readyState === WebSocket.OPEN) {
+                // Формируем команду для Nekto Me
+                const cmd = parsed.cmd;
+                const param = parsed.param || '';
+                nektoSocket.send(`42["${cmd}", "${param}"]`);
+            }
+        } catch (_) {}
     });
 
     ws.on('close', () => {

@@ -1,261 +1,169 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Nekto Control</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #0b0b0b;
-      color: #e0e0e0;
-      font-family: 'Segoe UI', monospace;
-      padding: 20px;
-    }
-    .container { max-width: 960px; margin: 0 auto; }
-    h1 {
-      font-size: 28px;
-      border-bottom: 2px solid #ff0044;
-      padding-bottom: 10px;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    h1 span { color: #ff0044; }
-    .panel {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-    .card {
-      background: #141414;
-      border: 1px solid #2a2a2a;
-      border-radius: 12px;
-      padding: 16px;
-      flex: 1 1 280px;
-      min-height: 180px;
-    }
-    .card h3 {
-      font-size: 16px;
-      color: #ff0044;
-      margin-bottom: 12px;
-      letter-spacing: 1px;
-    }
-    .log-box {
-      background: #0d0d0d;
-      border: 1px solid #222;
-      border-radius: 8px;
-      padding: 10px;
-      height: 220px;
-      overflow-y: auto;
-      font-size: 13px;
-      font-family: 'Courier New', monospace;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      color: #b0b0b0;
-    }
-    .log-box .in { color: #66ccff; }
-    .log-box .out { color: #ffaa44; }
-    .log-box .sys { color: #88ff88; }
-    .btn {
-      background: #ff0044;
-      border: none;
-      color: #fff;
-      padding: 8px 18px;
-      margin: 4px 6px 4px 0;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: 13px;
-      transition: 0.15s;
-    }
-    .btn:hover { opacity: 0.75; }
-    .btn.secondary { background: #2a2a2a; color: #ccc; }
-    .btn.secondary:hover { background: #3a3a3a; }
-    .room-item {
-      background: #1a1a1a;
-      padding: 10px 14px;
-      margin: 6px 0;
-      border-left: 4px solid #ff0044;
-      border-radius: 4px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .room-item .id { font-weight: bold; color: #fff; }
-    .room-item .users { color: #aaa; font-size: 14px; }
-    .input-group {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
-    .input-group input {
-      flex: 1;
-      padding: 8px 12px;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 6px;
-      color: #fff;
-      font-size: 14px;
-    }
-    .input-group input:focus { outline: none; border-color: #ff0044; }
-    .status {
-      font-size: 14px;
-      color: #888;
-      margin-top: 10px;
-    }
-    .status.online { color: #66ff66; }
-    .status.offline { color: #ff4444; }
+    body { background: #0a0a0a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; justify-content: center; align-items: center; }
+    .container { width: 480px; max-width: 100%; padding: 20px; background: #121212; border-radius: 24px; border: 1px solid #2a2a2a; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .header h1 { font-size: 22px; color: #ff0044; letter-spacing: 1px; }
+    .status { font-size: 14px; color: #66ff66; }
+    .chat-window { background: #1a1a1a; border-radius: 16px; padding: 16px; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #2a2a2a; }
+    .avatar-placeholder { font-size: 72px; margin-bottom: 12px; }
+    .user-name { font-size: 20px; font-weight: 600; color: #fff; }
+    .user-id { font-size: 14px; color: #888; margin-top: 4px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; justify-content: center; }
+    .btn { background: #2a2a2a; border: none; color: #fff; padding: 10px 20px; border-radius: 40px; font-weight: 600; font-size: 14px; cursor: pointer; transition: 0.2s; flex: 1 0 auto; min-width: 80px; }
+    .btn:hover { background: #3a3a3a; }
+    .btn-primary { background: #ff0044; color: #fff; }
+    .btn-primary:hover { background: #cc0033; }
+    .btn-danger { background: #cc0033; }
+    .btn-danger:hover { background: #990022; }
+    .btn-small { padding: 6px 14px; font-size: 12px; flex: 0 1 auto; }
+    .context-menu { display: none; position: fixed; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 8px 0; min-width: 180px; z-index: 1000; }
+    .context-menu .item { padding: 10px 20px; cursor: pointer; color: #ccc; font-size: 14px; }
+    .context-menu .item:hover { background: #2a2a2a; color: #fff; }
+    .log { margin-top: 16px; background: #0d0d0d; border-radius: 12px; padding: 10px; font-size: 12px; font-family: monospace; max-height: 100px; overflow-y: auto; color: #888; border: 1px solid #1a1a1a; }
   </style>
 </head>
 <body>
 <div class="container">
-  <h1><span>⚡</span> Nekto Control Panel</h1>
-  <div class="status" id="status">⏳ Подключение к серверу...</div>
-
-  <div class="panel">
-    <div class="card">
-      <h3>📡 Комнаты</h3>
-      <div id="roomsList"><div style="color:#555;">Ожидание данных...</div></div>
-    </div>
-
-    <div class="card" style="flex: 2 1 400px;">
-      <h3>📜 Лог событий</h3>
-      <div class="log-box" id="logBox">[⚡] Готов к работе.</div>
-    </div>
+  <div class="header">
+    <h1>⚡ Nekto Control</h1>
+    <span class="status" id="status">🔴 офлайн</span>
   </div>
 
-  <div class="card" style="margin-top: 20px; flex: 1 1 100%;">
-    <h3>🎮 Управление</h3>
-    <div class="input-group">
-      <input type="text" id="cmdInput" placeholder="Введите команду (join_room, leave, ping, kick [id])" />
-      <button class="btn" id="sendCmdBtn">Отправить</button>
-      <button class="btn secondary" id="clearLogBtn">Очистить лог</button>
-    </div>
-    <div style="margin-top: 8px; font-size: 13px; color: #666;">
-      Пример: <span style="color:#aaa;">join_room 1234</span>  или  <span style="color:#aaa;">kick user_567</span>
-    </div>
+  <div class="chat-window" id="chatWindow">
+    <div class="avatar-placeholder">👤</div>
+    <div class="user-name" id="userName">Никто не подключён</div>
+    <div class="user-id" id="userId">Ожидание...</div>
   </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="nextBtn">▶ Следующий</button>
+    <button class="btn" id="micBtn">🎤 Микрофон</button>
+    <button class="btn" id="muteBtn">🔇 Заглушить</button>
+    <button class="btn btn-danger" id="kickBtn">🚫 Кикнуть</button>
+  </div>
+
+  <div class="log" id="logBox">[⚡] Готов к работе.</div>
+</div>
+
+<!-- Контекстное меню (правый клик) -->
+<div class="context-menu" id="contextMenu">
+  <div class="item" data-action="mute">🔇 Заглушить</div>
+  <div class="item" data-action="unmute">🔊 Включить звук</div>
+  <div class="item" data-action="kick">🚫 Кикнуть</div>
+  <div class="item" data-action="listen">🎧 Прослушка</div>
+  <div class="item" data-action="block">⛔ Заблокировать</div>
 </div>
 
 <script>
   (function() {
     const logBox = document.getElementById('logBox');
-    const roomsList = document.getElementById('roomsList');
     const statusDiv = document.getElementById('status');
-    const cmdInput = document.getElementById('cmdInput');
-    const sendBtn = document.getElementById('sendCmdBtn');
-    const clearBtn = document.getElementById('clearLogBtn');
-
+    const userName = document.getElementById('userName');
+    const userId = document.getElementById('userId');
+    const nextBtn = document.getElementById('nextBtn');
+    const micBtn = document.getElementById('micBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    const kickBtn = document.getElementById('kickBtn');
+    const contextMenu = document.getElementById('contextMenu');
+    let currentUserId = null;
     let ws = null;
-    let reconnectAttempt = 0;
-    const MAX_RECONNECT = 10;
 
-    function log(message, type = '') {
+    function log(msg) {
       const time = new Date().toLocaleTimeString();
-      const prefix = type ? `[${type.toUpperCase()}]` : '';
-      logBox.innerHTML += `<div>${time} ${prefix} ${message}</div>`;
+      logBox.innerHTML += `<div>${time} ${msg}</div>`;
       logBox.scrollTop = logBox.scrollHeight;
     }
 
-    function setStatus(text, isOnline = false) {
+    function setStatus(text, online = false) {
       statusDiv.textContent = text;
-      statusDiv.className = 'status ' + (isOnline ? 'online' : 'offline');
+      statusDiv.style.color = online ? '#66ff66' : '#ff4444';
     }
 
     function connect() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const host = window.location.host;
-      const wsUrl = `${protocol}//${host}`;
-      log('Попытка подключения к ' + wsUrl, 'sys');
-      setStatus('⏳ Подключение...');
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${location.host}`);
 
-      ws = new WebSocket(wsUrl);
-
-      ws.onopen = function() {
-        log('Соединение установлено', 'sys');
-        setStatus('✅ Онлайн', true);
-        reconnectAttempt = 0;
+      ws.onopen = () => {
+        log('[SYS] Подключено к серверу');
+        setStatus('✅ онлайн', true);
       };
 
-      ws.onmessage = function(event) {
-        const data = event.data;
-        log(data, 'in');
+      ws.onmessage = (e) => {
+        const data = e.data;
+        log('[IN] ' + data);
         try {
           const parsed = JSON.parse(data);
-          if (parsed.cmd === 'rooms' && Array.isArray(parsed.data)) {
-            renderRooms(parsed.data);
+          if (parsed.cmd === 'user_connected') {
+            currentUserId = parsed.userId;
+            userName.textContent = 'Пользователь ' + parsed.userId.slice(0, 6);
+            userId.textContent = 'ID: ' + parsed.userId;
           }
-        } catch (_) {
-          // не JSON — просто показываем в логе
-        }
+          if (parsed.cmd === 'user_disconnected') {
+            userName.textContent = 'Никто не подключён';
+            userId.textContent = 'Ожидание...';
+            currentUserId = null;
+          }
+        } catch (_) {}
       };
 
-      ws.onerror = function(err) {
-        log('Ошибка: ' + (err.message || 'неизвестная'), 'err');
-        setStatus('❌ Ошибка соединения', false);
-      };
-
-      ws.onclose = function() {
-        log('Соединение закрыто', 'sys');
-        setStatus('🔴 Офлайн — переподключение...', false);
-        if (reconnectAttempt < MAX_RECONNECT) {
-          reconnectAttempt++;
-          setTimeout(connect, 3000);
-        } else {
-          log('Достигнут лимит переподключений', 'err');
-        }
+      ws.onclose = () => {
+        log('[SYS] Соединение потеряно');
+        setStatus('🔴 офлайн', false);
+        setTimeout(connect, 3000);
       };
     }
 
-    function renderRooms(rooms) {
-      if (!rooms || rooms.length === 0) {
-        roomsList.innerHTML = '<div style="color:#555;">Нет активных комнат</div>';
-        return;
-      }
-      roomsList.innerHTML = rooms.map(r => {
-        const id = r.id || r.roomId || 'unknown';
-        const users = r.users || r.count || 0;
-        return `<div class="room-item">
-          <span><span class="id">${id}</span> <span class="users">👥 ${users}</span></span>
-          <div>
-            <button class="btn" style="padding:4px 12px;font-size:12px;" onclick="sendCommand('join_room','${id}')">Войти</button>
-            <button class="btn secondary" style="padding:4px 12px;font-size:12px;" onclick="sendCommand('leave','${id}')">Выйти</button>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    window.sendCommand = function(cmd, param) {
+    function sendCommand(cmd, param = '') {
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        log('Нет соединения с сервером', 'err');
+        log('[ERR] Нет соединения');
         return;
       }
-      const payload = JSON.stringify({ cmd, param });
-      ws.send(payload);
-      log(`→ ${cmd} ${param || ''}`, 'out');
-    };
+      ws.send(JSON.stringify({ cmd, param }));
+      log('[OUT] → ' + cmd + ' ' + param);
+    }
 
-    sendBtn.addEventListener('click', function() {
-      const raw = cmdInput.value.trim();
-      if (!raw) return;
-      const parts = raw.split(/\s+/);
-      const cmd = parts[0];
-      const param = parts.slice(1).join(' ') || '';
-      sendCommand(cmd, param);
-      cmdInput.value = '';
+    // Кнопки
+    nextBtn.addEventListener('click', () => sendCommand('next'));
+    micBtn.addEventListener('click', () => sendCommand('toggle_mic'));
+    muteBtn.addEventListener('click', () => sendCommand('mute', currentUserId || ''));
+    kickBtn.addEventListener('click', () => sendCommand('kick', currentUserId || ''));
+
+    // Контекстное меню (правый клик)
+    document.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const target = e.target.closest('.user-name, .user-id, .chat-window');
+      if (target && currentUserId) {
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = e.clientX + 'px';
+        contextMenu.style.top = e.clientY + 'px';
+      } else {
+        contextMenu.style.display = 'none';
+      }
     });
 
-    cmdInput.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') sendBtn.click();
+    document.addEventListener('click', () => {
+      contextMenu.style.display = 'none';
     });
 
-    clearBtn.addEventListener('click', function() {
-      logBox.innerHTML = '';
+    document.querySelectorAll('.context-menu .item').forEach(item => {
+      item.addEventListener('click', () => {
+        const action = item.dataset.action;
+        if (!currentUserId) return;
+        if (action === 'mute') sendCommand('mute', currentUserId);
+        if (action === 'unmute') sendCommand('unmute', currentUserId);
+        if (action === 'kick') sendCommand('kick', currentUserId);
+        if (action === 'listen') sendCommand('listen', currentUserId);
+        if (action === 'block') sendCommand('block', currentUserId);
+        contextMenu.style.display = 'none';
+      });
     });
 
-    // Запуск
     connect();
   })();
 </script>
